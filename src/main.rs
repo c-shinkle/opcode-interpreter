@@ -67,13 +67,7 @@ fn interpret(input: &str) -> Result<String> {
         if i + 3 >= codes.len() {
             return Err(OutOfBounds(operator as usize));
         }
-        let first_pos = codes[i + 1] as usize;
-        let second_pos = codes[i + 2] as usize;
-        let result = match operator {
-            1 => codes[first_pos] + codes[second_pos],
-            2 => codes[first_pos] * codes[second_pos],
-            _ => return Err(BadOperator(operator)),
-        };
+        let result = lookup_operator(operator, &codes, i)?;
         let destination = codes[i + 3];
         codes[destination as usize] = result;
     }
@@ -84,4 +78,14 @@ fn interpret(input: &str) -> Result<String> {
         .collect::<String>();
     chars.pop();
     Ok(chars)
+}
+
+fn lookup_operator(operator: u32, codes: &[u32], index: usize) -> Result<u32> {
+    let first_pos = codes[index + 1] as usize;
+    let second_pos = codes[index + 2] as usize;
+    match operator {
+        1 => Ok(codes[first_pos] + codes[second_pos]),
+        2 => Ok(codes[first_pos] * codes[second_pos]),
+        _ => Err(BadOperator(operator)),
+    }
 }
