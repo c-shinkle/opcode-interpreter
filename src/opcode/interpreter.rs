@@ -22,7 +22,7 @@ pub fn interpret(input: &str) -> Result<String> {
         if operator == Operator::Terminate {
             break;
         }
-        if i + 3 >= codes.len() {
+        if i + 3 > codes.len() {
             return Err(OutOfBounds(i));
         }
 
