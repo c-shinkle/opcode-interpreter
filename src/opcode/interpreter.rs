@@ -6,28 +6,61 @@ use num_traits::FromPrimitive;
 pub enum Operator {
     Addition = 1,
     Multiplication = 2,
+    ReadInput = 3,
+    WriteOutput = 4,
     Terminate = 99,
 }
 
-pub fn interpret(input: &str) -> Result<String> {
+pub fn interpret(codes_string: &str, input: u32, output: &mut Option<u32>) -> Result<String> {
     //parse input
     let mut codes = Vec::new();
-    for token in input.split(',') {
+    for token in codes_string.split(',') {
         codes.push(token.parse::<u32>()?);
     }
     //executing Opcode
-    for i in (0..codes.len()).step_by(4) {
+    let mut i = 0;
+    while i < codes.len() {
         let operator = FromPrimitive::from_u32(codes[i]).ok_or(BadOperator(codes[i]))?;
 
-        if operator == Operator::Terminate {
-            break;
+        match operator {
+            Operator::Addition => {
+                if i + 3 >= codes.len() {
+                    return Err(OutOfBounds(i));
+                }
+                let first_pos = usize::try_from(codes[i + 1])?;
+                let second_pos = usize::try_from(codes[i + 2])?;
+                let destination = usize::try_from(codes[i + 3])?;
+                codes[destination] = codes[first_pos] + codes[second_pos];
+                i += 4;
+            }
+            Operator::Multiplication => {
+                if i + 3 >= codes.len() {
+                    return Err(OutOfBounds(i));
+                }
+                let first_pos = usize::try_from(codes[i + 1])?;
+                let second_pos = usize::try_from(codes[i + 2])?;
+                let destination = usize::try_from(codes[i + 3])?;
+                codes[destination] = codes[first_pos] * codes[second_pos];
+                i += 4;
+            }
+            Operator::ReadInput => {
+                if i + 1 >= codes.len() {
+                    return Err(OutOfBounds(i));
+                }
+                let destination = usize::try_from(codes[i + 1])?;
+                codes[destination] = input;
+                i += 2;
+            }
+            Operator::WriteOutput => {
+                if i + 1 >= codes.len() {
+                    return Err(OutOfBounds(i));
+                }
+                let pos = usize::try_from(codes[i + 1])?;
+                *output = Some(codes[pos]);
+                i += 2;
+            }
+            Operator::Terminate => break,
         }
-        if i + 3 > codes.len() {
-            return Err(OutOfBounds(i));
-        }
-
-        let destination = usize::try_from(codes[i + 3])?;
-        codes[destination] = lookup_operator(operator, &codes, i)?;
     }
     //stringify output
     let mut chars = codes
@@ -36,14 +69,4 @@ pub fn interpret(input: &str) -> Result<String> {
         .collect::<String>();
     chars.pop();
     Ok(chars)
-}
-
-fn lookup_operator(operator: Operator, codes: &[u32], index: usize) -> Result<u32> {
-    let first_pos = usize::try_from(codes[index + 1])?;
-    let second_pos = usize::try_from(codes[index + 2])?;
-    match operator {
-        Operator::Addition => Ok(codes[first_pos] + codes[second_pos]),
-        Operator::Multiplication => Ok(codes[first_pos] * codes[second_pos]),
-        Operator::Terminate => unreachable!("The 'Terminate' operator was checked upstream!"),
-    }
 }
