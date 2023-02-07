@@ -6,7 +6,7 @@ pub type Result<T> = std::result::Result<T, OpcodeError>;
 #[derive(Debug)]
 pub enum OpcodeError {
     Parse(ParseIntError),
-    BadOperator(u32),
+    BadOperator(i32),
     OutOfBounds(usize),
     FailedCast(TryFromIntError),
 }

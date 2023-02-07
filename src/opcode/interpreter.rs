@@ -11,16 +11,16 @@ pub enum Operator {
     Terminate = 99,
 }
 
-pub fn interpret(codes_string: &str, input: u32, output: &mut Option<u32>) -> Result<String> {
+pub fn interpret(codes_string: &str, input: i32, output: &mut Option<i32>) -> Result<String> {
     //parse input
     let mut codes = Vec::new();
     for token in codes_string.split(',') {
-        codes.push(token.parse::<u32>()?);
+        codes.push(token.parse::<i32>()?);
     }
     //executing Opcode
     let mut i = 0;
     while i < codes.len() {
-        let operator = FromPrimitive::from_u32(codes[i]).ok_or(BadOperator(codes[i]))?;
+        let operator = FromPrimitive::from_i32(codes[i]).ok_or(BadOperator(codes[i]))?;
 
         match operator {
             Operator::Addition => {
