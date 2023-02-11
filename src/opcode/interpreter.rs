@@ -26,9 +26,6 @@ pub fn interpret(codes_string: &str, input: i32, output: &mut Option<i32>) -> Re
     //executing Opcode
     let mut i = 0;
     loop {
-        if i >= codes.len() {
-            return Err(OutOfBounds(i));
-        }
         let opcode = codes[i];
 
         let first_param = (opcode / 100) % 10;
@@ -42,7 +39,7 @@ pub fn interpret(codes_string: &str, input: i32, output: &mut Option<i32>) -> Re
         let operator_i32 = opcode % 100;
         let operator = FromPrimitive::from_i32(operator_i32).ok_or(BadOperator(operator_i32))?;
 
-        let mut binary_operation = |op: &dyn Fn(i32, i32) -> i32| {
+        let mut binary_operation = |op: fn(i32, i32) -> i32| {
             if i + 3 >= codes.len() {
                 return Err(OutOfBounds(i + 3));
             }
@@ -61,8 +58,8 @@ pub fn interpret(codes_string: &str, input: i32, output: &mut Option<i32>) -> Re
         };
 
         match operator {
-            Operator::Addition => binary_operation(&|a, b| a + b)?,
-            Operator::Multiplication => binary_operation(&|a, b| a * b)?,
+            Operator::Addition => binary_operation(|a, b| a + b)?,
+            Operator::Multiplication => binary_operation(|a, b| a * b)?,
             Operator::ReadInput => {
                 if i + 1 >= codes.len() {
                     return Err(OutOfBounds(i + 1));
@@ -79,6 +76,9 @@ pub fn interpret(codes_string: &str, input: i32, output: &mut Option<i32>) -> Re
                 i += 2;
             }
             Operator::Terminate => break,
+        }
+        if i >= codes.len() {
+            return Err(OutOfBounds(i));
         }
     }
     //stringify output
