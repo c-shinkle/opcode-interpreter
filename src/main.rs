@@ -1,8 +1,6 @@
-#[macro_use]
 extern crate num_derive;
-pub mod opcode;
 
-use opcode::interpreter::interpret;
+use opcode_interpreter::opcode::interpreter::interpret;
 
 fn main() {
     let input = i32::default();

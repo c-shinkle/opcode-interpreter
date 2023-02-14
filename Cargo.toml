@@ -1,5 +1,5 @@
 [package]
-name = "byte-code-interpreter"
+name = "opcode-interpreter"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,3 +7,4 @@ edition = "2021"
 num = "0.4"
 num-derive = "0.3"
 num-traits = "0.2"
+itertools = "0.10.5"
