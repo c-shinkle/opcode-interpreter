@@ -54,13 +54,13 @@ pub fn interpret(codes_string: &str, input: i32, output: &mut Option<i32>) -> Re
                 |a, b| a * b,
             )?,
             Operator::ReadInput => {
-                bounds(i + 1, codes.len())?;
+                bounds_check(i + 1, codes.len())?;
                 let destination = usize::try_from(codes[i + 1])?;
                 codes[destination] = input;
                 i += 2;
             }
             Operator::WriteOutput => {
-                bounds(i + 1, codes.len())?;
+                bounds_check(i + 1, codes.len())?;
                 *output = Some(codes[usize::try_from(codes[i + 1])?]);
                 i += 2;
             }
@@ -81,7 +81,7 @@ fn binary_operation(
     second_param_mode: ParameterMode,
     op: fn(i32, i32) -> i32,
 ) -> Result<()> {
-    bounds(*i + 3, codes.len())?;
+    bounds_check(*i + 3, codes.len())?;
     let first = match first_param_mode {
         ParameterMode::Position => codes[usize::try_from(codes[*i + 1])?],
         ParameterMode::Immediate => codes[1 + 1],
@@ -96,7 +96,7 @@ fn binary_operation(
     Ok(())
 }
 
-fn bounds(index: usize, len: usize) -> Result<()> {
+fn bounds_check(index: usize, len: usize) -> Result<()> {
     if index >= len {
         return Err(OutOfBounds(index));
     }
