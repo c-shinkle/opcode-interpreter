@@ -111,7 +111,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "opcode-interpreter"
+name = "opcode_interpreter"
 version = "0.1.0"
 dependencies = [
  "itertools",
