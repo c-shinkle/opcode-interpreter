@@ -84,7 +84,7 @@ fn binary_operation(
     bounds_check(*i + 3, codes.len())?;
     let first = match first_param_mode {
         ParameterMode::Position => codes[usize::try_from(codes[*i + 1])?],
-        ParameterMode::Immediate => codes[1 + 1],
+        ParameterMode::Immediate => codes[*i + 1],
     };
     let second = match second_param_mode {
         ParameterMode::Position => codes[usize::try_from(codes[*i + 2])?],
@@ -101,4 +101,75 @@ fn bounds_check(index: usize, len: usize) -> Result<()> {
         return Err(OutOfBounds(index));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::interpret;
+    use std::fs;
+
+    #[test]
+    fn advent_of_code_puzzle() {
+        let given = fs::read_to_string("res/advent_of_code_puzzle")
+            .expect("Should have been able to read the file");
+        let mut output = Option::default();
+
+        let actual = interpret(&given, 1, &mut output);
+
+        assert!(actual.is_ok());
+        assert!(output.is_some());
+        assert_ne!(output.unwrap(), -33826);
+    }
+
+    #[test]
+    fn add_multi_3500() {
+        let given = "1,9,10,3,2,3,11,0,99,30,40,50";
+
+        let actual = interpret(given, i32::default(), &mut Option::default());
+
+        assert!(actual.is_ok());
+        assert_eq!(&actual.unwrap(), "3500,9,10,70,2,3,11,0,99,30,40,50");
+    }
+
+    #[test]
+    fn input_1377() {
+        let given = "3,0,99";
+
+        let actual = interpret(given, 1337, &mut Option::default());
+
+        assert!(actual.is_ok());
+        assert_eq!(&actual.unwrap(), "1337,0,99");
+    }
+
+    #[test]
+    fn output_1377() {
+        let given = "4,3,99,1337";
+        let mut output = Option::None;
+
+        let actual = interpret(given, i32::default(), &mut output);
+
+        assert!(actual.is_ok());
+        assert!(output.is_some());
+        assert_eq!(output.unwrap(), 1337);
+    }
+
+    #[test]
+    fn first_param_position() {
+        let given = "00102,3,4,4,33";
+
+        let actual = interpret(given, i32::default(), &mut Option::default());
+
+        assert!(actual.is_ok());
+        assert_eq!(actual.unwrap(), "102,3,4,4,99");
+    }
+
+    #[test]
+    fn second_param_position() {
+        let given = "01002,4,3,4,33";
+
+        let actual = interpret(given, i32::default(), &mut Option::default());
+
+        assert!(actual.is_ok());
+        assert_eq!(actual.unwrap(), "1002,4,3,4,99");
+    }
 }
