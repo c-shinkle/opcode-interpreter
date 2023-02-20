@@ -1,7 +1,5 @@
 use super::errors::OpcodeError::*;
 use super::errors::Result;
-use super::parse;
-use super::stringify;
 use num_traits::FromPrimitive;
 
 #[derive(FromPrimitive)]
@@ -19,10 +17,7 @@ enum ParameterMode {
     Immediate = 1,
 }
 
-pub fn interpret(codes_string: &str, input: i32, output: &mut Option<i32>) -> Result<String> {
-    //parse input
-    let mut codes = parse::imperative(codes_string)?;
-    //executing Opcode
+pub fn interpret(codes: &mut Vec<i32>, input: i32, output: &mut Option<i32>) -> Result<()> {
     let mut i = 0;
     loop {
         let opcode = codes[i];
@@ -41,14 +36,14 @@ pub fn interpret(codes_string: &str, input: i32, output: &mut Option<i32>) -> Re
         match operator {
             Operator::Addition => binary_operation(
                 &mut i,
-                &mut codes,
+                codes,
                 first_param_mode,
                 second_param_mode,
                 |a, b| a + b,
             )?,
             Operator::Multiplication => binary_operation(
                 &mut i,
-                &mut codes,
+                codes,
                 first_param_mode,
                 second_param_mode,
                 |a, b| a * b,
@@ -70,8 +65,7 @@ pub fn interpret(codes_string: &str, input: i32, output: &mut Option<i32>) -> Re
             return Err(OutOfBounds(i));
         }
     }
-    //stringify output
-    Ok(stringify::precompute_capacity(&codes))
+    Ok(())
 }
 
 fn binary_operation(
@@ -106,15 +100,18 @@ fn bounds_check(index: usize, len: usize) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::interpret;
+    use crate::opcode::parse;
     use std::fs;
 
     #[test]
     fn advent_of_code_puzzle() {
-        let given = fs::read_to_string("res/advent_of_code_puzzle")
+        let codes_string = fs::read_to_string("res/advent_of_code_puzzle")
             .expect("Should have been able to read the file");
+        let mut given = parse::imperative(&codes_string)
+            .expect("Should have been able to parse codes from file");
         let mut output = Option::default();
 
-        let actual = interpret(&given, 1, &mut output);
+        let actual = interpret(&mut given, 1, &mut output);
 
         assert!(actual.is_ok());
         assert!(output.is_some());
@@ -123,30 +120,30 @@ mod tests {
 
     #[test]
     fn add_multi_3500() {
-        let given = "1,9,10,3,2,3,11,0,99,30,40,50";
+        let mut given = vec![1, 9, 10, 3, 2, 3, 11, 0, 99, 30, 40, 50];
 
-        let actual = interpret(given, i32::default(), &mut Option::default());
+        let actual = interpret(&mut given, i32::default(), &mut Option::default());
 
         assert!(actual.is_ok());
-        assert_eq!(&actual.unwrap(), "3500,9,10,70,2,3,11,0,99,30,40,50");
+        assert_eq!(given, vec![3500, 9, 10, 70, 2, 3, 11, 0, 99, 30, 40, 50]);
     }
 
     #[test]
     fn input_1377() {
-        let given = "3,0,99";
+        let mut given = vec![3, 0, 99];
 
-        let actual = interpret(given, 1337, &mut Option::default());
+        let actual = interpret(&mut given, 1337, &mut Option::default());
 
         assert!(actual.is_ok());
-        assert_eq!(&actual.unwrap(), "1337,0,99");
+        assert_eq!(given, vec![1337, 0, 99]);
     }
 
     #[test]
     fn output_1377() {
-        let given = "4,3,99,1337";
-        let mut output = Option::None;
+        let mut given = vec![4, 3, 99, 1337];
+        let mut output = None;
 
-        let actual = interpret(given, i32::default(), &mut output);
+        let actual = interpret(&mut given, i32::default(), &mut output);
 
         assert!(actual.is_ok());
         assert!(output.is_some());
@@ -155,21 +152,21 @@ mod tests {
 
     #[test]
     fn first_param_position() {
-        let given = "00102,3,4,4,33";
+        let mut given = vec![102, 3, 4, 4, 33];
 
-        let actual = interpret(given, i32::default(), &mut Option::default());
+        let actual = interpret(&mut given, i32::default(), &mut Option::default());
 
         assert!(actual.is_ok());
-        assert_eq!(actual.unwrap(), "102,3,4,4,99");
+        assert_eq!(given, vec![102, 3, 4, 4, 99]);
     }
 
     #[test]
     fn second_param_position() {
-        let given = "01002,4,3,4,33";
+        let mut given = vec![1002, 4, 3, 4, 33];
 
-        let actual = interpret(given, i32::default(), &mut Option::default());
+        let actual = interpret(&mut given, i32::default(), &mut Option::default());
 
         assert!(actual.is_ok());
-        assert_eq!(actual.unwrap(), "1002,4,3,4,99");
+        assert_eq!(given, vec![1002, 4, 3, 4, 99]);
     }
 }
