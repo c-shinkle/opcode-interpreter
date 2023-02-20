@@ -3,12 +3,12 @@ extern crate num_derive;
 use std::fs::read_to_string;
 
 use opcode_interpreter::opcode::interpreter::interpret;
-use opcode_interpreter::opcode::{parse, stringify};
+use opcode_interpreter::opcode::parse;
 
 fn main() {
     //read file
-    // let result_codes_string = read_to_string("res/day_2");
-    let result_codes_string = read_to_string("res/day_5");
+    let result_codes_string = read_to_string("res/day_2");
+    // let result_codes_string = read_to_string("res/day_5");
     if let Err(error) = result_codes_string {
         eprintln!("{error}");
         return;
@@ -21,20 +21,23 @@ fn main() {
         return;
     }
     //interpret codes
-    let mut codes = result_codes.unwrap();
-    let input = 1;
+    let template_codes = result_codes.unwrap();
     let mut output = Option::default();
-    if let Err(error) = interpret(&mut codes, input, &mut output) {
-        eprintln!("{error}");
-        return;
+    for noun in 0..100 {
+        for verb in 0..100 {
+            let mut codes = template_codes.clone();
+            codes[1] = noun;
+            codes[2] = verb;
+            if let Err(error) = interpret(&mut codes, 1, &mut output) {
+                eprintln!("{error}");
+                continue;
+            }
+            //print results
+            if codes[0] == 19690720 {
+                println!("I found it! The noun is {noun} and the verb is {verb}!");
+                return;
+            }
+        }
     }
-    //print results
-    let codes_string = stringify::precompute_capacity(&codes);
-    println!("codes string");
-    println!("{codes_string}");
-    println!("output");
-    match output {
-        Some(value) => println!("{value}"),
-        None => println!("None"),
-    }
+    println!("No solution was found 😕");
 }

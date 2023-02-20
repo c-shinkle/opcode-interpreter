@@ -105,8 +105,8 @@ mod tests {
 
     #[test]
     fn day_2_part_1() {
-        let codes_string = fs::read_to_string("res/day_2")
-            .expect("Should have been able to read the file");
+        let codes_string =
+            fs::read_to_string("res/day_2").expect("Should have been able to read the file");
         let mut given = parse::imperative(&codes_string)
             .expect("Should have been able to parse codes from file");
         let mut output = Option::default();
@@ -119,8 +119,8 @@ mod tests {
 
     #[test]
     fn day_5_part_1() {
-        let codes_string = fs::read_to_string("res/day_5")
-            .expect("Should have been able to read the file");
+        let codes_string =
+            fs::read_to_string("res/day_5").expect("Should have been able to read the file");
         let mut given = parse::imperative(&codes_string)
             .expect("Should have been able to parse codes from file");
         let mut output = Option::default();
