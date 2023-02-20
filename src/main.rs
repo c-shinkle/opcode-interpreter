@@ -7,7 +7,8 @@ use opcode_interpreter::opcode::{parse, stringify};
 
 fn main() {
     //read file
-    let result_codes_string = read_to_string("res/advent_of_code_puzzle");
+    // let result_codes_string = read_to_string("res/day_2");
+    let result_codes_string = read_to_string("res/day_5");
     if let Err(error) = result_codes_string {
         eprintln!("{error}");
         return;
@@ -21,7 +22,7 @@ fn main() {
     }
     //interpret codes
     let mut codes = result_codes.unwrap();
-    let input = i32::default();
+    let input = 1;
     let mut output = Option::default();
     if let Err(error) = interpret(&mut codes, input, &mut output) {
         eprintln!("{error}");

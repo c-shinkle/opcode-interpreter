@@ -104,8 +104,22 @@ mod tests {
     use std::fs;
 
     #[test]
-    fn advent_of_code_puzzle() {
-        let codes_string = fs::read_to_string("res/advent_of_code_puzzle")
+    fn day_2_part_1() {
+        let codes_string = fs::read_to_string("res/day_2")
+            .expect("Should have been able to read the file");
+        let mut given = parse::imperative(&codes_string)
+            .expect("Should have been able to parse codes from file");
+        let mut output = Option::default();
+
+        let actual = interpret(&mut given, 1, &mut output);
+
+        assert!(actual.is_ok());
+        assert_eq!(given[0], 7594646);
+    }
+
+    #[test]
+    fn day_5_part_1() {
+        let codes_string = fs::read_to_string("res/day_5")
             .expect("Should have been able to read the file");
         let mut given = parse::imperative(&codes_string)
             .expect("Should have been able to parse codes from file");
@@ -115,7 +129,7 @@ mod tests {
 
         assert!(actual.is_ok());
         assert!(output.is_some());
-        assert_ne!(output.unwrap(), -33826);
+        assert_eq!(output.unwrap(), 11193703);
     }
 
     #[test]
