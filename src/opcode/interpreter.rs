@@ -1,6 +1,7 @@
 use super::errors::OpcodeError::*;
 use super::errors::Result;
 use num_traits::FromPrimitive;
+use Operator::*;
 
 #[derive(FromPrimitive)]
 pub enum Operator {
@@ -8,6 +9,10 @@ pub enum Operator {
     Multiplication = 2,
     ReadInput = 3,
     WriteOutput = 4,
+    JumpIfTrue = 5,
+    JumpIfFalse = 6,
+    LessThan = 7,
+    Equal = 8,
     Terminate = 99,
 }
 
@@ -34,32 +39,59 @@ pub fn interpret(codes: &mut Vec<i32>, input: i32, output: &mut Option<i32>) -> 
         let operator = FromPrimitive::from_i32(operator_i32).ok_or(BadOperator(operator_i32))?;
 
         match operator {
-            Operator::Addition => binary_operation(
+            Addition => arithmetic_operation(
                 &mut i,
                 codes,
                 first_param_mode,
                 second_param_mode,
                 |a, b| a + b,
             )?,
-            Operator::Multiplication => binary_operation(
+            Multiplication => arithmetic_operation(
                 &mut i,
                 codes,
                 first_param_mode,
                 second_param_mode,
                 |a, b| a * b,
             )?,
-            Operator::ReadInput => {
+            ReadInput => {
                 bounds_check(i + 1, codes.len())?;
                 let destination = usize::try_from(codes[i + 1])?;
                 codes[destination] = input;
                 i += 2;
             }
-            Operator::WriteOutput => {
+            WriteOutput => {
                 bounds_check(i + 1, codes.len())?;
-                *output = Some(codes[usize::try_from(codes[i + 1])?]);
+                *output = Some(match first_param_mode {
+                    ParameterMode::Position => codes[usize::try_from(codes[i + 1])?],
+                    ParameterMode::Immediate => codes[i + 1],
+                });
                 i += 2;
             }
-            Operator::Terminate => break,
+            JumpIfTrue => {
+                jump(&mut i, codes, first_param_mode, second_param_mode, |a| {
+                    a != 0
+                })?;
+            }
+            JumpIfFalse => {
+                jump(&mut i, codes, first_param_mode, second_param_mode, |a| {
+                    a == 0
+                })?;
+            }
+            LessThan => compare(
+                &mut i,
+                codes,
+                first_param_mode,
+                second_param_mode,
+                |a, b| a < b,
+            )?,
+            Equal => compare(
+                &mut i,
+                codes,
+                first_param_mode,
+                second_param_mode,
+                |a, b| a == b,
+            )?,
+            Terminate => break,
         }
         if i >= codes.len() {
             return Err(OutOfBounds(i));
@@ -68,7 +100,7 @@ pub fn interpret(codes: &mut Vec<i32>, input: i32, output: &mut Option<i32>) -> 
     Ok(())
 }
 
-fn binary_operation(
+fn arithmetic_operation(
     i: &mut usize,
     codes: &mut Vec<i32>,
     first_param_mode: ParameterMode,
@@ -86,6 +118,52 @@ fn binary_operation(
     };
     let destination = usize::try_from(codes[*i + 3])?;
     codes[destination] = op(first, second);
+    *i += 4;
+    Ok(())
+}
+
+fn jump(
+    i: &mut usize,
+    codes: &Vec<i32>,
+    first_param_mode: ParameterMode,
+    second_param_mode: ParameterMode,
+    op: fn(i32) -> bool,
+) -> Result<()> {
+    bounds_check(*i + 2, codes.len())?;
+    let first = match first_param_mode {
+        ParameterMode::Position => codes[usize::try_from(codes[*i + 1])?],
+        ParameterMode::Immediate => codes[*i + 1],
+    };
+    if op(first) {
+        let instruction_pointer = match second_param_mode {
+            ParameterMode::Position => codes[usize::try_from(codes[*i + 2])?],
+            ParameterMode::Immediate => codes[*i + 2],
+        };
+        *i = usize::try_from(instruction_pointer)?;
+    } else {
+        *i += 3;
+    }
+    Ok(())
+}
+
+fn compare(
+    i: &mut usize,
+    codes: &mut Vec<i32>,
+    first: ParameterMode,
+    second: ParameterMode,
+    predicate: fn(i32, i32) -> bool,
+) -> Result<()> {
+    bounds_check(*i + 3, codes.len())?;
+    let first_code = match first {
+        ParameterMode::Position => codes[usize::try_from(codes[*i + 1])?],
+        ParameterMode::Immediate => codes[*i + 1],
+    };
+    let second_code = match second {
+        ParameterMode::Position => codes[usize::try_from(codes[*i + 2])?],
+        ParameterMode::Immediate => codes[*i + 2],
+    };
+    let destination = usize::try_from(codes[*i + 3])?;
+    codes[destination] = predicate(first_code, second_code) as i32;
     *i += 4;
     Ok(())
 }
@@ -126,6 +204,21 @@ mod tests {
         let mut output = Option::default();
 
         let actual = interpret(&mut given, 1, &mut output);
+
+        assert!(actual.is_ok());
+        assert!(output.is_some());
+        assert_eq!(output.unwrap(), 11193703);
+    }
+
+    #[test]
+    fn day_5_part_2() {
+        let codes_string =
+            fs::read_to_string("res/day_5").expect("Should have been able to read the file");
+        let mut given = parse::imperative(&codes_string)
+            .expect("Should have been able to parse codes from file");
+        let mut output = Option::default();
+
+        let actual = interpret(&mut given, 5, &mut output);
 
         assert!(actual.is_ok());
         assert!(output.is_some());
@@ -182,5 +275,53 @@ mod tests {
 
         assert!(actual.is_ok());
         assert_eq!(given, vec![1002, 4, 3, 4, 99]);
+    }
+
+    #[test]
+    fn compare_equal_eight_position() {
+        let mut given = vec![3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8];
+        let mut output = Option::default();
+
+        let actual = interpret(&mut given, 8, &mut output);
+
+        assert!(actual.is_ok());
+        assert!(output.is_some());
+        assert_eq!(output.unwrap(), 1);
+    }
+
+    #[test]
+    fn compare_less_than_eight_position() {
+        let mut given = vec![3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8];
+        let mut output = Option::default();
+
+        let actual = interpret(&mut given, 7, &mut output);
+
+        assert!(actual.is_ok());
+        assert!(output.is_some());
+        assert_eq!(output.unwrap(), 1);
+    }
+
+    #[test]
+    fn compare_equal_eight_immediate() {
+        let mut given = vec![3, 3, 1108, -1, 8, 3, 4, 3, 99];
+        let mut output = Option::default();
+
+        let actual = interpret(&mut given, 8, &mut output);
+
+        assert!(actual.is_ok());
+        assert!(output.is_some());
+        assert_eq!(output.unwrap(), 1);
+    }
+
+    #[test]
+    fn compare_less_than_eight_immediate() {
+        let mut given = vec![3, 3, 1107, -1, 8, 3, 4, 3, 99];
+        let mut output = Option::default();
+
+        let actual = interpret(&mut given, 7, &mut output);
+
+        assert!(actual.is_ok());
+        assert!(output.is_some());
+        assert_eq!(output.unwrap(), 1);
     }
 }
