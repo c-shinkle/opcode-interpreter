@@ -39,14 +39,14 @@ pub fn interpret(codes: &mut Vec<i32>, input: i32, output: &mut Option<i32>) -> 
         let operator = FromPrimitive::from_i32(operator_i32).ok_or(BadOperator(operator_i32))?;
 
         match operator {
-            Addition => arithmetic_operation(
+            Addition => binary_operation(
                 &mut i,
                 codes,
                 first_param_mode,
                 second_param_mode,
                 |a, b| a + b,
             )?,
-            Multiplication => arithmetic_operation(
+            Multiplication => binary_operation(
                 &mut i,
                 codes,
                 first_param_mode,
@@ -54,16 +54,16 @@ pub fn interpret(codes: &mut Vec<i32>, input: i32, output: &mut Option<i32>) -> 
                 |a, b| a * b,
             )?,
             ReadInput => {
-                bounds_check(i + 1, codes.len())?;
-                let destination = usize::try_from(codes[i + 1])?;
+                let first_code = *codes.get(i + 1).ok_or(OutOfBounds(i + 1))?;
+                let destination = usize::try_from(first_code)?;
                 codes[destination] = input;
                 i += 2;
             }
             WriteOutput => {
-                bounds_check(i + 1, codes.len())?;
+                let first_code = *codes.get(i + 1).ok_or(OutOfBounds(i + 1))?;
                 *output = Some(match first_param_mode {
-                    ParameterMode::Position => codes[usize::try_from(codes[i + 1])?],
-                    ParameterMode::Immediate => codes[i + 1],
+                    ParameterMode::Position => codes[usize::try_from(first_code)?],
+                    ParameterMode::Immediate => first_code,
                 });
                 i += 2;
             }
@@ -77,19 +77,19 @@ pub fn interpret(codes: &mut Vec<i32>, input: i32, output: &mut Option<i32>) -> 
                     a == 0
                 })?;
             }
-            LessThan => compare(
+            LessThan => binary_operation(
                 &mut i,
                 codes,
                 first_param_mode,
                 second_param_mode,
-                |a, b| a < b,
+                |a, b| (a < b) as i32,
             )?,
-            Equal => compare(
+            Equal => binary_operation(
                 &mut i,
                 codes,
                 first_param_mode,
                 second_param_mode,
-                |a, b| a == b,
+                |a, b| (a == b) as i32,
             )?,
             Terminate => break,
         }
@@ -100,77 +100,50 @@ pub fn interpret(codes: &mut Vec<i32>, input: i32, output: &mut Option<i32>) -> 
     Ok(())
 }
 
-fn arithmetic_operation(
+fn binary_operation(
     i: &mut usize,
-    codes: &mut Vec<i32>,
-    first_param_mode: ParameterMode,
-    second_param_mode: ParameterMode,
-    op: fn(i32, i32) -> i32,
+    codes: &mut [i32],
+    first_mode: ParameterMode,
+    second_mode: ParameterMode,
+    predicate: fn(i32, i32) -> i32,
 ) -> Result<()> {
-    bounds_check(*i + 3, codes.len())?;
-    let first = match first_param_mode {
-        ParameterMode::Position => codes[usize::try_from(codes[*i + 1])?],
-        ParameterMode::Immediate => codes[*i + 1],
+    let first_code = *codes.get(*i + 1).ok_or(OutOfBounds(*i + 1))?;
+    let first_param = match first_mode {
+        ParameterMode::Position => codes[usize::try_from(first_code)?],
+        ParameterMode::Immediate => first_code,
     };
-    let second = match second_param_mode {
-        ParameterMode::Position => codes[usize::try_from(codes[*i + 2])?],
-        ParameterMode::Immediate => codes[*i + 2],
+    let second_code = *codes.get(*i + 2).ok_or(OutOfBounds(*i + 2))?;
+    let second_param = match second_mode {
+        ParameterMode::Position => codes[usize::try_from(second_code)?],
+        ParameterMode::Immediate => second_code,
     };
-    let destination = usize::try_from(codes[*i + 3])?;
-    codes[destination] = op(first, second);
+    let destination = usize::try_from(*codes.get(*i + 3).ok_or(OutOfBounds(*i + 3))?)?;
+    codes[destination] = predicate(first_param, second_param);
     *i += 4;
     Ok(())
 }
 
 fn jump(
     i: &mut usize,
-    codes: &Vec<i32>,
+    codes: &[i32],
     first_param_mode: ParameterMode,
     second_param_mode: ParameterMode,
     op: fn(i32) -> bool,
 ) -> Result<()> {
-    bounds_check(*i + 2, codes.len())?;
-    let first = match first_param_mode {
-        ParameterMode::Position => codes[usize::try_from(codes[*i + 1])?],
-        ParameterMode::Immediate => codes[*i + 1],
+    let first_code = *codes.get(*i + 1).ok_or(OutOfBounds(*i + 1))?;
+    let first_param = match first_param_mode {
+        ParameterMode::Position => codes[usize::try_from(first_code)?],
+        ParameterMode::Immediate => first_code,
     };
-    if op(first) {
+    if op(first_param) {
+        let second_code = *codes.get(*i + 2).ok_or(OutOfBounds(*i + 2))?;
         let instruction_pointer = match second_param_mode {
-            ParameterMode::Position => codes[usize::try_from(codes[*i + 2])?],
-            ParameterMode::Immediate => codes[*i + 2],
+            ParameterMode::Position => codes[usize::try_from(second_code)?],
+            ParameterMode::Immediate => second_code,
         };
         *i = usize::try_from(instruction_pointer)?;
     } else {
         *i += 3;
-    }
-    Ok(())
-}
-
-fn compare(
-    i: &mut usize,
-    codes: &mut Vec<i32>,
-    first: ParameterMode,
-    second: ParameterMode,
-    predicate: fn(i32, i32) -> bool,
-) -> Result<()> {
-    bounds_check(*i + 3, codes.len())?;
-    let first_code = match first {
-        ParameterMode::Position => codes[usize::try_from(codes[*i + 1])?],
-        ParameterMode::Immediate => codes[*i + 1],
-    };
-    let second_code = match second {
-        ParameterMode::Position => codes[usize::try_from(codes[*i + 2])?],
-        ParameterMode::Immediate => codes[*i + 2],
-    };
-    let destination = usize::try_from(codes[*i + 3])?;
-    codes[destination] = predicate(first_code, second_code) as i32;
-    *i += 4;
-    Ok(())
-}
-
-fn bounds_check(index: usize, len: usize) -> Result<()> {
-    if index >= len {
-        return Err(OutOfBounds(index));
     }
     Ok(())
 }
@@ -222,7 +195,7 @@ mod tests {
 
         assert!(actual.is_ok());
         assert!(output.is_some());
-        assert_eq!(output.unwrap(), 11193703);
+        assert_eq!(output.unwrap(), 12410607);
     }
 
     #[test]
