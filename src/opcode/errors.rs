@@ -11,6 +11,8 @@ pub enum OpcodeError {
     OutOfBounds(usize),
     FailedCast(TryFromIntError),
     BadParameterMode(i32),
+    MissingOutput,
+    MissingInput,
 }
 
 impl fmt::Display for OpcodeError {
@@ -23,6 +25,8 @@ impl fmt::Display for OpcodeError {
             BadParameterMode(parameter_mode) => {
                 write!(f, "Parameter mode {parameter_mode} is not valid!")
             }
+            MissingOutput => write!(f, "No output for amplifier!"),
+            MissingInput => write!(f, "Input read from too many times!"),
         }
     }
 }
@@ -38,6 +42,8 @@ impl error::Error for OpcodeError {
             OutOfBounds(_) => None,
             FailedCast(ref e) => Some(e),
             BadParameterMode(_) => None,
+            MissingOutput => None,
+            MissingInput => None,
         }
     }
 }

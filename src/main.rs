@@ -9,7 +9,7 @@ use std::fs;
 fn main() -> Result<(), Box<dyn Error>> {
     let mut codes = parse::imperative(&fs::read_to_string("res/day_5")?)?;
     let mut output = None;
-    interpret(&mut codes, 5, &mut output)?;
+    interpret(&mut codes, vec![5], &mut output)?;
 
     println!("codes string");
     println!("{}", stringify::precompute_capacity(&codes));

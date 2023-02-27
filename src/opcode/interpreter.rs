@@ -22,7 +22,11 @@ enum ParameterMode {
     Immediate = 1,
 }
 
-pub fn interpret(codes: &mut Vec<i32>, input: i32, output: &mut Option<i32>) -> Result<()> {
+pub fn interpret(
+    codes: &mut Vec<i32>,
+    mut input: Vec<i32>,
+    output: &mut Option<i32>,
+) -> Result<()> {
     let mut i = 0;
     loop {
         let opcode = codes[i];
@@ -56,7 +60,7 @@ pub fn interpret(codes: &mut Vec<i32>, input: i32, output: &mut Option<i32>) -> 
             ReadInput => {
                 let first_code = *codes.get(i + 1).ok_or(OutOfBounds(i + 1))?;
                 let destination = usize::try_from(first_code)?;
-                codes[destination] = input;
+                codes[destination] = input.pop().ok_or(MissingInput)?;
                 i += 2;
             }
             WriteOutput => {
@@ -105,7 +109,7 @@ fn arithmetic_operation(
     codes: &mut [i32],
     first_mode: ParameterMode,
     second_mode: ParameterMode,
-    predicate: fn(i32, i32) -> i32,
+    op: fn(i32, i32) -> i32,
 ) -> Result<()> {
     let first_code = *codes.get(*i + 1).ok_or(OutOfBounds(*i + 1))?;
     let first_param = match first_mode {
@@ -118,7 +122,7 @@ fn arithmetic_operation(
         ParameterMode::Immediate => second_code,
     };
     let destination = usize::try_from(*codes.get(*i + 3).ok_or(OutOfBounds(*i + 3))?)?;
-    codes[destination] = predicate(first_param, second_param);
+    codes[destination] = op(first_param, second_param);
     *i += 4;
     Ok(())
 }
@@ -162,7 +166,7 @@ mod tests {
             .expect("Should have been able to parse codes from file");
         let mut output = Option::default();
 
-        let actual = interpret(&mut given, 1, &mut output);
+        let actual = interpret(&mut given, vec![1], &mut output);
 
         assert!(actual.is_ok());
         assert_eq!(given[0], 7594646);
@@ -176,7 +180,7 @@ mod tests {
             .expect("Should have been able to parse codes from file");
         let mut output = Option::default();
 
-        let actual = interpret(&mut given, 1, &mut output);
+        let actual = interpret(&mut given, vec![1], &mut output);
 
         assert!(actual.is_ok());
         assert!(output.is_some());
@@ -191,7 +195,7 @@ mod tests {
             .expect("Should have been able to parse codes from file");
         let mut output = Option::default();
 
-        let actual = interpret(&mut given, 5, &mut output);
+        let actual = interpret(&mut given, vec![5], &mut output);
 
         assert!(actual.is_ok());
         assert!(output.is_some());
@@ -202,7 +206,7 @@ mod tests {
     fn add_multi_3500() {
         let mut given = vec![1, 9, 10, 3, 2, 3, 11, 0, 99, 30, 40, 50];
 
-        let actual = interpret(&mut given, i32::default(), &mut Option::default());
+        let actual = interpret(&mut given, vec![i32::default()], &mut Option::default());
 
         assert!(actual.is_ok());
         assert_eq!(given, vec![3500, 9, 10, 70, 2, 3, 11, 0, 99, 30, 40, 50]);
@@ -212,7 +216,7 @@ mod tests {
     fn input_1377() {
         let mut given = vec![3, 0, 99];
 
-        let actual = interpret(&mut given, 1337, &mut Option::default());
+        let actual = interpret(&mut given, vec![1337], &mut Option::default());
 
         assert!(actual.is_ok());
         assert_eq!(given, vec![1337, 0, 99]);
@@ -223,7 +227,7 @@ mod tests {
         let mut given = vec![4, 3, 99, 1337];
         let mut output = None;
 
-        let actual = interpret(&mut given, i32::default(), &mut output);
+        let actual = interpret(&mut given, vec![i32::default()], &mut output);
 
         assert!(actual.is_ok());
         assert!(output.is_some());
@@ -234,7 +238,7 @@ mod tests {
     fn first_param_position() {
         let mut given = vec![102, 3, 4, 4, 33];
 
-        let actual = interpret(&mut given, i32::default(), &mut Option::default());
+        let actual = interpret(&mut given, vec![i32::default()], &mut Option::default());
 
         assert!(actual.is_ok());
         assert_eq!(given, vec![102, 3, 4, 4, 99]);
@@ -244,7 +248,7 @@ mod tests {
     fn second_param_position() {
         let mut given = vec![1002, 4, 3, 4, 33];
 
-        let actual = interpret(&mut given, i32::default(), &mut Option::default());
+        let actual = interpret(&mut given, vec![i32::default()], &mut Option::default());
 
         assert!(actual.is_ok());
         assert_eq!(given, vec![1002, 4, 3, 4, 99]);
@@ -255,7 +259,7 @@ mod tests {
         let mut given = vec![3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8];
         let mut output = Option::default();
 
-        let actual = interpret(&mut given, 8, &mut output);
+        let actual = interpret(&mut given, vec![8], &mut output);
 
         assert!(actual.is_ok());
         assert!(output.is_some());
@@ -267,7 +271,7 @@ mod tests {
         let mut given = vec![3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8];
         let mut output = Option::default();
 
-        let actual = interpret(&mut given, 7, &mut output);
+        let actual = interpret(&mut given, vec![7], &mut output);
 
         assert!(actual.is_ok());
         assert!(output.is_some());
@@ -279,7 +283,7 @@ mod tests {
         let mut given = vec![3, 3, 1108, -1, 8, 3, 4, 3, 99];
         let mut output = Option::default();
 
-        let actual = interpret(&mut given, 8, &mut output);
+        let actual = interpret(&mut given, vec![8], &mut output);
 
         assert!(actual.is_ok());
         assert!(output.is_some());
@@ -291,7 +295,7 @@ mod tests {
         let mut given = vec![3, 3, 1107, -1, 8, 3, 4, 3, 99];
         let mut output = Option::default();
 
-        let actual = interpret(&mut given, 7, &mut output);
+        let actual = interpret(&mut given, vec![7], &mut output);
 
         assert!(actual.is_ok());
         assert!(output.is_some());
