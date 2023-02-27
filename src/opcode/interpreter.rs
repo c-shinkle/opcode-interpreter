@@ -39,14 +39,14 @@ pub fn interpret(codes: &mut Vec<i32>, input: i32, output: &mut Option<i32>) -> 
         let operator = FromPrimitive::from_i32(operator_i32).ok_or(BadOperator(operator_i32))?;
 
         match operator {
-            Addition => binary_operation(
+            Addition => arithmetic_operation(
                 &mut i,
                 codes,
                 first_param_mode,
                 second_param_mode,
                 |a, b| a + b,
             )?,
-            Multiplication => binary_operation(
+            Multiplication => arithmetic_operation(
                 &mut i,
                 codes,
                 first_param_mode,
@@ -77,14 +77,14 @@ pub fn interpret(codes: &mut Vec<i32>, input: i32, output: &mut Option<i32>) -> 
                     a == 0
                 })?;
             }
-            LessThan => binary_operation(
+            LessThan => arithmetic_operation(
                 &mut i,
                 codes,
                 first_param_mode,
                 second_param_mode,
                 |a, b| (a < b) as i32,
             )?,
-            Equal => binary_operation(
+            Equal => arithmetic_operation(
                 &mut i,
                 codes,
                 first_param_mode,
@@ -100,7 +100,7 @@ pub fn interpret(codes: &mut Vec<i32>, input: i32, output: &mut Option<i32>) -> 
     Ok(())
 }
 
-fn binary_operation(
+fn arithmetic_operation(
     i: &mut usize,
     codes: &mut [i32],
     first_mode: ParameterMode,

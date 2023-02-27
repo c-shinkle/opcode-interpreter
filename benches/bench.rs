@@ -4,8 +4,10 @@ extern crate test;
 
 #[cfg(test)]
 mod tests {
+    use opcode_interpreter::opcode::interpreter::interpret;
     use opcode_interpreter::opcode::parse::{functional_parse, imperative};
     use opcode_interpreter::opcode::stringify::{itertools_join, precompute_capacity};
+    use std::fs;
     use test::{black_box, Bencher};
 
     #[bench]
@@ -39,6 +41,16 @@ mod tests {
         codes_string.insert_str(24444, ",x");
         b.iter(|| {
             let _ = black_box(functional_parse(&codes_string));
+        });
+    }
+
+    #[bench]
+    fn day_5_part_2(b: &mut Bencher) {
+        let codes_string = fs::read_to_string("res/day_5").unwrap();
+        let original = imperative(&codes_string).unwrap();
+        b.iter(|| {
+            let mut codes = original.clone();
+            let _ = black_box(interpret(&mut codes, 5, &mut None).expect("Should return 12410607"));
         });
     }
 }
