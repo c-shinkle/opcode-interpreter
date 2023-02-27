@@ -77,19 +77,19 @@ pub fn interpret(codes: &mut Vec<i32>, input: i32, output: &mut Option<i32>) -> 
                     a == 0
                 })?;
             }
-            LessThan => compare(
+            LessThan => arithmetic_operation(
                 &mut i,
                 codes,
                 first_param_mode,
                 second_param_mode,
-                |a, b| a < b,
+                |a, b| (a < b) as i32,
             )?,
-            Equal => compare(
+            Equal => arithmetic_operation(
                 &mut i,
                 codes,
                 first_param_mode,
                 second_param_mode,
-                |a, b| a == b,
+                |a, b| (a == b) as i32,
             )?,
             Terminate => break,
         }
@@ -143,28 +143,6 @@ fn jump(
     } else {
         *i += 3;
     }
-    Ok(())
-}
-
-fn compare(
-    i: &mut usize,
-    codes: &mut Vec<i32>,
-    first: ParameterMode,
-    second: ParameterMode,
-    predicate: fn(i32, i32) -> bool,
-) -> Result<()> {
-    bounds_check(*i + 3, codes.len())?;
-    let first_code = match first {
-        ParameterMode::Position => codes[usize::try_from(codes[*i + 1])?],
-        ParameterMode::Immediate => codes[*i + 1],
-    };
-    let second_code = match second {
-        ParameterMode::Position => codes[usize::try_from(codes[*i + 2])?],
-        ParameterMode::Immediate => codes[*i + 2],
-    };
-    let destination = usize::try_from(codes[*i + 3])?;
-    codes[destination] = predicate(first_code, second_code) as i32;
-    *i += 4;
     Ok(())
 }
 
@@ -222,7 +200,7 @@ mod tests {
 
         assert!(actual.is_ok());
         assert!(output.is_some());
-        assert_eq!(output.unwrap(), 11193703);
+        assert_eq!(output.unwrap(), 12410607);
     }
 
     #[test]
