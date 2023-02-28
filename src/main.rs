@@ -1,19 +1,11 @@
 extern crate num_derive;
 
-use opcode_interpreter::opcode::interpreter::interpret;
-use opcode_interpreter::opcode::parse;
-use opcode_interpreter::opcode::stringify;
-use std::error::Error;
-use std::fs;
+use opcode_interpreter::opcode::amplifier::compute_max_signal;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let mut codes = parse::imperative(&fs::read_to_string("res/day_5")?)?;
-    let mut output = None;
-    interpret(&mut codes, vec![5], &mut output)?;
-
-    println!("codes string");
-    println!("{}", stringify::precompute_capacity(&codes));
-    println!("output");
-    println!("{output:?}");
-    Ok(())
+fn main() {
+    let codes_string = "3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0";
+    match compute_max_signal(codes_string) {
+        Ok(signal) => println!("signal\n{signal}"),
+        Err(opcode_error) => println!("{opcode_error}"),
+    }
 }

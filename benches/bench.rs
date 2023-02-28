@@ -4,6 +4,7 @@ extern crate test;
 
 #[cfg(test)]
 mod tests {
+    use opcode_interpreter::opcode::amplifier::compute_max_signal;
     use opcode_interpreter::opcode::interpreter::interpret;
     use opcode_interpreter::opcode::parse::{functional_parse, imperative};
     use opcode_interpreter::opcode::stringify::{itertools_join, precompute_capacity};
@@ -50,7 +51,17 @@ mod tests {
         let original = imperative(&codes_string).unwrap();
         b.iter(|| {
             let mut codes = original.clone();
-            let _ = black_box(interpret(&mut codes, 5, &mut None).expect("Should return 12410607"));
+            let _ = black_box(
+                interpret(&mut codes, vec![5], &mut None).expect("Should return 12410607"),
+            );
+        });
+    }
+
+    #[bench]
+    fn day_7_part_1(b: &mut Bencher) {
+        let codes_string = "3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0";
+        b.iter(|| {
+            let _ = black_box(compute_max_signal(codes_string).expect("Should return 65210"));
         });
     }
 }
