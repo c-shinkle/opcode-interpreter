@@ -4,7 +4,9 @@ extern crate test;
 
 #[cfg(test)]
 mod tests {
-    use opcode_interpreter::opcode::amplifier::compute_max_signal;
+    use opcode_interpreter::opcode::amplifier::{
+        multi_threaded_compute_max_signal, single_threaded_compute_max_signal,
+    };
     use opcode_interpreter::opcode::interpreter::interpret;
     use opcode_interpreter::opcode::parse::{functional_parse, imperative};
     use opcode_interpreter::opcode::stringify::{itertools_join, precompute_capacity};
@@ -58,10 +60,22 @@ mod tests {
     }
 
     #[bench]
-    fn day_7_part_1(b: &mut Bencher) {
+    fn single_thread_max_signal(b: &mut Bencher) {
         let codes_string = "3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0";
         b.iter(|| {
-            let _ = black_box(compute_max_signal(codes_string).expect("Should return 65210"));
+            let _ = black_box(
+                single_threaded_compute_max_signal(codes_string).expect("Should return 65210"),
+            );
+        });
+    }
+
+    #[bench]
+    fn two_thread_max_signal(b: &mut Bencher) {
+        let codes_string = "3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0";
+        b.iter(|| {
+            let _ = black_box(
+                multi_threaded_compute_max_signal(codes_string).expect("Should return 65210"),
+            );
         });
     }
 }
