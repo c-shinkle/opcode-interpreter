@@ -1,4 +1,5 @@
 use self::OpcodeError::*;
+use std::any::Any;
 use std::num::{ParseIntError, TryFromIntError};
 use std::{error, fmt};
 
@@ -13,6 +14,7 @@ pub enum OpcodeError {
     BadParameterMode(i32),
     MissingOutput,
     MissingInput,
+    FailedJoin(Box<dyn Any + Send + 'static>),
 }
 
 impl fmt::Display for OpcodeError {
@@ -27,6 +29,7 @@ impl fmt::Display for OpcodeError {
             }
             MissingOutput => write!(f, "No output for amplifier!"),
             MissingInput => write!(f, "Input read from too many times!"),
+            FailedJoin(any) => write!(f, "Thread join failed for {:?}", any.type_id()),
         }
     }
 }
@@ -44,6 +47,7 @@ impl error::Error for OpcodeError {
             BadParameterMode(_) => None,
             MissingOutput => None,
             MissingInput => None,
+            FailedJoin(_) => None,
         }
     }
 }
@@ -60,5 +64,11 @@ impl From<ParseIntError> for OpcodeError {
 impl From<TryFromIntError> for OpcodeError {
     fn from(err: TryFromIntError) -> OpcodeError {
         FailedCast(err)
+    }
+}
+
+impl From<Box<dyn Any + Send>> for OpcodeError {
+    fn from(err: Box<dyn Any + Send>) -> OpcodeError {
+        FailedJoin(err)
     }
 }

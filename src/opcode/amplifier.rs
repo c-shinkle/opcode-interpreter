@@ -58,8 +58,7 @@ pub fn multi_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
 
     let mut results = Vec::with_capacity(N);
     for handle in handles {
-        // TODO extend custom result to handle failed joins
-        results.push(handle.join().unwrap());
+        results.push(handle.join()?);
     }
 
     let mut current = i32::MIN;
