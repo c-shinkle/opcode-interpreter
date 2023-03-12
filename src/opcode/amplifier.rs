@@ -20,23 +20,37 @@ pub fn single_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
     Ok(current)
 }
 
-pub fn multi_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
-    let arc_codes = Arc::new(parse::imperative(codes_string)?);
+pub fn rayon_compute_max_signal(codes_string: &str) -> Result<i32> {
+    let codes = parse::imperative(codes_string)?;
+    let results: Vec<Result<i32>> = PERMUTATIONS
+        .into_par_iter()
+        .map(|phase_sequence| amplify(&codes, phase_sequence))
+        .collect();
+    let mut current = i32::MIN;
+    for result in results {
+        current = current.max(result?);
+    }
+    Ok(current)
+}
 
+pub fn multi_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
     const N: usize = 3;
-    let perm_ranges: [Range<usize>; N] = divide_ranges();
+    let arc_codes = Arc::new(parse::imperative(codes_string)?);
+    let perm_ranges = divide_ranges(N);
     let mut handles: Vec<JoinHandle<Result<i32>>> = Vec::with_capacity(N);
 
+    // impl A
     for range in perm_ranges {
         let codes = arc_codes.clone();
         let handle = spawn(move || {
-            let mut current = i32::MIN;
-            let permutations: [[i32; 5]; PERMUTATIONS.len() / N] =
-                PERMUTATIONS[range].try_into().unwrap();
-            for perm in permutations.into_iter() {
-                current = current.max(amplify(&codes, perm)?);
+            const CAP: usize = PERMUTATIONS.len() / N;
+            let permutations: [[i32; 5]; CAP] = PERMUTATIONS[range].try_into().unwrap();
+            let mut results: Vec<Result<i32>> = Vec::with_capacity(CAP);
+            for perm in permutations {
+                results.push(amplify(&codes, perm));
             }
-            Ok(current)
+            let signals: Result<Vec<i32>> = results.into_iter().collect();
+            Ok(signals?.into_iter().max().unwrap())
         });
         handles.push(handle);
     }
@@ -47,28 +61,73 @@ pub fn multi_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
     }
 
     Ok(current)
+    // impl B
+    // for range in perm_ranges {
+    //     let codes = arc_codes.clone();
+    //     let handle = spawn(move || {
+    //         const CAP: usize = PERMUTATIONS.len() / N;
+    //         let permutations: [[i32; 5]; CAP] = PERMUTATIONS[range].try_into().unwrap();
+    //         let mut results: Vec<Result<i32>> = Vec::with_capacity(CAP);
+    //         for perm in permutations {
+    //             results.push(amplify(&codes, perm));
+    //         }
+    //         let mut current = i32::MIN;
+    //         for result in results {
+    //             current = current.max(result?);
+    //         }
+    //         Ok(current)
+    //     });
+    //     handles.push(handle);
+    // }
+
+    // let mut current = i32::MIN;
+    // for handle in handles {
+    //     current = current.max(handle.join().unwrap()?);
+    // }
+
+    // Ok(current)
+    // impl C
+    // for range in perm_ranges {
+    //     let codes = arc_codes.clone();
+    //     let handle = spawn(move || {
+    //         const CAP: usize = PERMUTATIONS.len() / N;
+    //         let permutations: [[i32; 5]; CAP] = PERMUTATIONS[range].try_into().unwrap();
+    //         let mut results: Vec<Result<i32>> = Vec::with_capacity(CAP);
+    //         for perm in permutations {
+    //             results.push(amplify(&codes, perm));
+    //         }
+    //         let mut current = i32::MIN;
+    //         for result in results {
+    //             current = current.max(result?);
+    //         }
+    //         Ok(current)
+    //     });
+    //     handles.push(handle);
+    // }
+
+    // let mut results = Vec::with_capacity(N);
+    // for handle in handles {
+    //     results.push(handle.join().unwrap());
+    // }
+
+    // let mut current = i32::MIN;
+    // for result in results {
+    //     current = current.max(result?);
+    // }
+
+    // Ok(current)
 }
 
-fn divide_ranges<const N: usize>() -> [Range<usize>; N] {
+fn divide_ranges(n: usize) -> Vec<Range<usize>> {
     let len = PERMUTATIONS.len();
-    let mut ranges = Vec::with_capacity(N);
-    for i in 0..N {
+    let mut ranges = Vec::with_capacity(n);
+    for i in 0..n {
         ranges.push(Range {
-            start: len / N * i,
-            end: len / N * (i + 1),
+            start: len / n * i,
+            end: len / n * (i + 1),
         });
     }
-    ranges.try_into().unwrap()
-}
-
-pub fn rayon_compute_max_signal(codes_string: &str) -> Result<i32> {
-    let codes = parse::imperative(codes_string)?;
-
-    PERMUTATIONS
-        .into_par_iter()
-        .map(|permutation| amplify(&codes, permutation))
-        .try_fold(|| i32::MIN, |acc, signal| Ok(acc.max(signal?)))
-        .try_reduce(|| 0, |a, b| Ok(a.max(b)))
+    ranges
 }
 
 fn amplify(codes: &[i32], phase_sequence: [i32; 5]) -> Result<i32> {
@@ -122,7 +181,7 @@ mod tests {
     fn ranges_2() {
         let len = PERMUTATIONS.len();
         let expected = [0..len / 2, len / 2..len];
-        let actual = divide_ranges();
+        let actual = divide_ranges(2);
         assert_eq!(actual, expected);
     }
 
@@ -135,7 +194,7 @@ mod tests {
             len / 2..3 * len / 4,
             3 * len / 4..len,
         ];
-        let actual = divide_ranges();
+        let actual = divide_ranges(4);
         assert_eq!(actual, expected);
     }
 }
