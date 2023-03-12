@@ -1,14 +1,15 @@
 use rayon::iter::ParallelIterator;
 use rayon::prelude::IntoParallelIterator;
 
-use super::errors::OpcodeError::{self, MissingOutput};
+use super::errors::OpcodeError::MissingOutput;
 use super::errors::Result;
 use super::interpreter::interpret;
 use super::parse;
 use super::permutations::PERMUTATIONS;
 
-use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
+use std::ops::Range;
+use std::sync::Arc;
+use std::thread::{spawn, JoinHandle};
 
 pub fn single_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
     let codes = parse::imperative(codes_string)?;
@@ -19,41 +20,45 @@ pub fn single_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
     Ok(current)
 }
 
-pub fn multi_threaded_compute_max_signal(codes_string: &'static str) -> Result<i32> {
-    let codes = parse::imperative(codes_string)?;
-    let arc = Arc::new(Mutex::new(codes));
+pub fn multi_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
+    let arc_codes = Arc::new(parse::imperative(codes_string)?);
 
-    let first = &PERMUTATIONS[0..PERMUTATIONS.len() / 2];
-    let second = &PERMUTATIONS[PERMUTATIONS.len() / 2..];
+    const N: usize = 3;
+    let perm_ranges: [Range<usize>; N] = divide_ranges();
+    let mut handles: Vec<JoinHandle<Result<i32>>> = Vec::with_capacity(N);
 
-    let arc_clone = Arc::clone(&arc);
-    let handle_1: JoinHandle<Result<i32>> = thread::spawn(move || {
-        let codes = arc_clone.lock().unwrap();
-        // let codes = parse::imperative(&codes_string)?;
-        let mut current = i32::MIN;
-        for perm in first.iter().cloned() {
-            current = current.max(amplify(&codes, perm)?);
-        }
-        Ok::<i32, OpcodeError>(current)
-    });
-    
+    for range in perm_ranges {
+        let codes = arc_codes.clone();
+        let handle = spawn(move || {
+            let mut current = i32::MIN;
+            let permutations: [[i32; 5]; PERMUTATIONS.len() / N] =
+                PERMUTATIONS[range].try_into().unwrap();
+            for perm in permutations.into_iter() {
+                current = current.max(amplify(&codes, perm)?);
+            }
+            Ok(current)
+        });
+        handles.push(handle);
+    }
 
-    let arc_clone = Arc::clone(&arc);
-    let handle_2: JoinHandle<Result<i32>> = thread::spawn(move || {
-        let codes = arc_clone.lock().unwrap();
-        // let codes = parse::imperative(&codes_string)?;
+    let mut current = i32::MIN;
+    for handle in handles {
+        current = current.max(handle.join().unwrap()?);
+    }
 
-        let mut current = i32::MIN;
-        for perm in second.iter().cloned() {
-            current = current.max(amplify(&codes, perm)?);
-        }
-        Ok(current)
-    });
+    Ok(current)
+}
 
-    handle_1.join().unwrap()?;
-    handle_2.join().unwrap()?;
-
-    Ok(0)
+fn divide_ranges<const N: usize>() -> [Range<usize>; N] {
+    let len = PERMUTATIONS.len();
+    let mut ranges = Vec::with_capacity(N);
+    for i in 0..N {
+        ranges.push(Range {
+            start: len / N * i,
+            end: len / N * (i + 1),
+        });
+    }
+    ranges.try_into().unwrap()
 }
 
 pub fn rayon_compute_max_signal(codes_string: &str) -> Result<i32> {
@@ -78,7 +83,9 @@ fn amplify(codes: &[i32], phase_sequence: [i32; 5]) -> Result<i32> {
 
 #[cfg(test)]
 mod tests {
-    use super::single_threaded_compute_max_signal;
+    use crate::opcode::permutations::PERMUTATIONS;
+
+    use super::{divide_ranges, single_threaded_compute_max_signal};
 
     #[test]
     fn day_7_part_a() {
@@ -109,5 +116,26 @@ mod tests {
 
         assert!(actual.is_ok());
         assert_eq!(actual.unwrap(), 65210);
+    }
+
+    #[test]
+    fn ranges_2() {
+        let len = PERMUTATIONS.len();
+        let expected = [0..len / 2, len / 2..len];
+        let actual = divide_ranges();
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn ranges_4() {
+        let len = PERMUTATIONS.len();
+        let expected = [
+            0..len / 4,
+            len / 4..len / 2,
+            len / 2..3 * len / 4,
+            3 * len / 4..len,
+        ];
+        let actual = divide_ranges();
+        assert_eq!(actual, expected);
     }
 }
