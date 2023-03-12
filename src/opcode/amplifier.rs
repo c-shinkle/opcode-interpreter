@@ -39,83 +39,35 @@ pub fn multi_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
     let perm_ranges = divide_ranges(N);
     let mut handles: Vec<JoinHandle<Result<i32>>> = Vec::with_capacity(N);
 
-    // impl A
     for range in perm_ranges {
         let codes = arc_codes.clone();
         let handle = spawn(move || {
-            const CAP: usize = PERMUTATIONS.len() / N;
-            let permutations: [[i32; 5]; CAP] = PERMUTATIONS[range].try_into().unwrap();
-            let mut results: Vec<Result<i32>> = Vec::with_capacity(CAP);
+            let permutations = &PERMUTATIONS[range];
+            let mut results: Vec<Result<i32>> = Vec::with_capacity(PERMUTATIONS.len() / N);
             for perm in permutations {
-                results.push(amplify(&codes, perm));
+                results.push(amplify(&codes, *perm));
             }
-            let signals: Result<Vec<i32>> = results.into_iter().collect();
-            Ok(signals?.into_iter().max().unwrap())
+            let mut current = i32::MIN;
+            for result in results {
+                current = current.max(result?);
+            }
+            Ok(current)
         });
         handles.push(handle);
     }
 
-    let mut current = i32::MIN;
+    let mut results = Vec::with_capacity(N);
     for handle in handles {
-        current = current.max(handle.join().unwrap()?);
+        // TODO extend custom result to handle failed joins
+        results.push(handle.join().unwrap());
+    }
+
+    let mut current = i32::MIN;
+    for result in results {
+        current = current.max(result?);
     }
 
     Ok(current)
-    // impl B
-    // for range in perm_ranges {
-    //     let codes = arc_codes.clone();
-    //     let handle = spawn(move || {
-    //         const CAP: usize = PERMUTATIONS.len() / N;
-    //         let permutations: [[i32; 5]; CAP] = PERMUTATIONS[range].try_into().unwrap();
-    //         let mut results: Vec<Result<i32>> = Vec::with_capacity(CAP);
-    //         for perm in permutations {
-    //             results.push(amplify(&codes, perm));
-    //         }
-    //         let mut current = i32::MIN;
-    //         for result in results {
-    //             current = current.max(result?);
-    //         }
-    //         Ok(current)
-    //     });
-    //     handles.push(handle);
-    // }
-
-    // let mut current = i32::MIN;
-    // for handle in handles {
-    //     current = current.max(handle.join().unwrap()?);
-    // }
-
-    // Ok(current)
-    // impl C
-    // for range in perm_ranges {
-    //     let codes = arc_codes.clone();
-    //     let handle = spawn(move || {
-    //         const CAP: usize = PERMUTATIONS.len() / N;
-    //         let permutations: [[i32; 5]; CAP] = PERMUTATIONS[range].try_into().unwrap();
-    //         let mut results: Vec<Result<i32>> = Vec::with_capacity(CAP);
-    //         for perm in permutations {
-    //             results.push(amplify(&codes, perm));
-    //         }
-    //         let mut current = i32::MIN;
-    //         for result in results {
-    //             current = current.max(result?);
-    //         }
-    //         Ok(current)
-    //     });
-    //     handles.push(handle);
-    // }
-
-    // let mut results = Vec::with_capacity(N);
-    // for handle in handles {
-    //     results.push(handle.join().unwrap());
-    // }
-
-    // let mut current = i32::MIN;
-    // for result in results {
-    //     current = current.max(result?);
-    // }
-
-    // Ok(current)
 }
 
 fn divide_ranges(n: usize) -> Vec<Range<usize>> {
