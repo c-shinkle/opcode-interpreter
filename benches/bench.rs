@@ -15,7 +15,6 @@ mod tests {
     use test::{black_box, Bencher};
 
     #[bench]
-    #[ignore]
     fn itertools_join_10000(b: &mut Bencher) {
         let codes = (0..10000).collect::<Vec<i32>>();
         b.iter(|| {
@@ -24,7 +23,6 @@ mod tests {
     }
 
     #[bench]
-    #[ignore]
     fn precompute_capacity_10000(b: &mut Bencher) {
         let codes = (0..10000).collect::<Vec<i32>>();
         b.iter(|| {
@@ -33,7 +31,6 @@ mod tests {
     }
 
     #[bench]
-    #[ignore]
     fn imperative_parse_10000(b: &mut Bencher) {
         let mut codes_string = precompute_capacity(&(0..10000).collect::<Vec<i32>>());
         codes_string.insert_str(24444, ",x");
@@ -43,7 +40,6 @@ mod tests {
     }
 
     #[bench]
-    #[ignore]
     fn functional_parse_10000(b: &mut Bencher) {
         let mut codes_string = precompute_capacity(&(0..10000).collect::<Vec<i32>>());
         codes_string.insert_str(24444, ",x");
@@ -53,7 +49,6 @@ mod tests {
     }
 
     #[bench]
-    #[ignore]
     fn day_5_part_2(b: &mut Bencher) {
         let codes_string = fs::read_to_string("res/day_5").unwrap();
         let original = imperative(&codes_string).unwrap();
