@@ -1,3 +1,4 @@
+use array_macro::array;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::IntoParallelIterator;
 
@@ -36,10 +37,10 @@ pub fn rayon_compute_max_signal(codes_string: &str) -> Result<i32> {
 pub fn multi_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
     const N: usize = 3;
     let arc_codes = Arc::new(parse::imperative(codes_string)?);
-    let perm_ranges = divide_ranges(N);
-    let mut handles: Vec<JoinHandle<Result<i32>>> = Vec::with_capacity(N);
+    let perm_ranges: [Range<usize>; N] = divide_ranges();
+    let mut handles: [Option<JoinHandle<Result<i32>>>; N] = Default::default();
 
-    for range in perm_ranges {
+    for (i, range) in perm_ranges.into_iter().enumerate() {
         let codes = arc_codes.clone();
         let handle = spawn(move || {
             let permutations = &PERMUTATIONS[range];
@@ -53,32 +54,29 @@ pub fn multi_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
             }
             Ok(current)
         });
-        handles.push(handle);
+        handles[i] = Some(handle);
     }
 
-    let mut results = Vec::with_capacity(N);
-    for handle in handles {
-        results.push(handle.join()?);
+    let mut results: [Option<Result<i32>>; N] = Default::default();
+    for (i, handle) in handles.into_iter().enumerate() {
+        results[i] = Some(handle.unwrap().join()?);
     }
 
     let mut current = i32::MIN;
     for result in results {
-        current = current.max(result?);
+        current = current.max(result.unwrap()?);
     }
 
     Ok(current)
 }
 
-fn divide_ranges(n: usize) -> Vec<Range<usize>> {
+fn divide_ranges<const N: usize>() -> [Range<usize>; N] {
     let len = PERMUTATIONS.len();
-    let mut ranges = Vec::with_capacity(n);
-    for i in 0..n {
-        ranges.push(Range {
-            start: len / n * i,
-            end: len / n * (i + 1),
-        });
-    }
-    ranges
+    array![i => {
+        let start = len / N * i;
+        let end = len / N * (i + 1);
+        start..end
+    }; N]
 }
 
 fn amplify(codes: &[i32], phase_sequence: [i32; 5]) -> Result<i32> {
@@ -132,7 +130,15 @@ mod tests {
     fn ranges_2() {
         let len = PERMUTATIONS.len();
         let expected = [0..len / 2, len / 2..len];
-        let actual = divide_ranges(2);
+        let actual = divide_ranges();
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn ranges_3() {
+        let len = PERMUTATIONS.len();
+        let expected = [0..len / 3, len / 3..2 * len / 3, 2 * len / 3..len];
+        let actual = divide_ranges();
         assert_eq!(actual, expected);
     }
 
@@ -145,7 +151,7 @@ mod tests {
             len / 2..3 * len / 4,
             3 * len / 4..len,
         ];
-        let actual = divide_ranges(4);
+        let actual = divide_ranges();
         assert_eq!(actual, expected);
     }
 }
