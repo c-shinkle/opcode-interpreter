@@ -38,9 +38,9 @@ pub fn multi_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
     const N: usize = 3;
     let arc_codes = Arc::new(parse::imperative(codes_string)?);
     let perm_ranges: [Range<usize>; N] = divide_ranges();
-    let mut handles: [Option<JoinHandle<Result<i32>>>; N] = Default::default();
+    let mut handles: Vec<JoinHandle<Result<i32>>> = Vec::with_capacity(N);
 
-    for (i, range) in perm_ranges.into_iter().enumerate() {
+    for range in perm_ranges {
         let codes = arc_codes.clone();
         let handle = spawn(move || {
             let permutations = &PERMUTATIONS[range];
@@ -54,17 +54,17 @@ pub fn multi_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
             }
             Ok(current)
         });
-        handles[i] = Some(handle);
+        handles.push(handle);
     }
 
-    let mut results: [Option<Result<i32>>; N] = Default::default();
-    for (i, handle) in handles.into_iter().enumerate() {
-        results[i] = Some(handle.unwrap().join()?);
+    let mut results = Vec::with_capacity(N);
+    for handle in handles {
+        results.push(handle.join()?);
     }
 
     let mut current = i32::MIN;
     for result in results {
-        current = current.max(result.unwrap()?);
+        current = current.max(result?);
     }
 
     Ok(current)
