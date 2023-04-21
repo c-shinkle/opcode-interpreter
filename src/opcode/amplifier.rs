@@ -35,39 +35,31 @@ pub fn rayon_compute_max_signal(codes_string: &str) -> Result<i32> {
 }
 
 pub fn multi_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
-    const N: usize = 3;
     let arc_codes = Arc::new(parse::imperative(codes_string)?);
-    let perm_ranges: [Range<usize>; N] = divide_ranges();
-    let mut handles: Vec<JoinHandle<Result<i32>>> = Vec::with_capacity(N);
 
-    for range in perm_ranges {
-        let codes = arc_codes.clone();
-        let handle = spawn(move || {
-            let permutations = &PERMUTATIONS[range];
-            let mut results: Vec<Result<i32>> = Vec::with_capacity(PERMUTATIONS.len() / N);
-            for perm in permutations {
-                results.push(amplify(&codes, *perm));
-            }
-            let mut current = i32::MIN;
-            for result in results {
-                current = current.max(result?);
-            }
-            Ok(current)
-        });
-        handles.push(handle);
-    }
-
-    let mut results = Vec::with_capacity(N);
-    for handle in handles {
-        results.push(handle.join()?);
-    }
-
-    let mut current = i32::MIN;
-    for result in results {
-        current = current.max(result?);
-    }
-
-    Ok(current)
+    divide_ranges::<3>()
+        // Step 1: spin up threads
+        .into_iter()
+        .map(|range| {
+            let codes = arc_codes.clone();
+            spawn(move || {
+                // each thread will find the max of its given range
+                PERMUTATIONS[range]
+                    .iter()
+                    .map(|perm| amplify(&codes, *perm))
+                    .collect::<Vec<Result<i32>>>()
+                    .into_iter()
+                    .try_fold(i32::MIN, |acc, result| Result::Ok(acc.max(result?)))
+            })
+        })
+        .collect::<Vec<JoinHandle<Result<i32>>>>()
+        // Step 2: join threads
+        .into_iter()
+        .map(|handle| handle.join()?)
+        .collect::<Vec<Result<i32>>>()
+        // Step 3: pick max result
+        .into_iter()
+        .try_fold(i32::MIN, |acc, result| Result::Ok(acc.max(result?)))
 }
 
 fn divide_ranges<const N: usize>() -> [Range<usize>; N] {
