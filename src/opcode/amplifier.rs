@@ -23,15 +23,11 @@ pub fn single_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
 
 pub fn rayon_compute_max_signal(codes_string: &str) -> Result<i32> {
     let codes = parse::imperative(codes_string)?;
-    let results: Vec<Result<i32>> = PERMUTATIONS
+    PERMUTATIONS
         .into_par_iter()
         .map(|phase_sequence| amplify(&codes, phase_sequence))
-        .collect();
-    let mut current = i32::MIN;
-    for result in results {
-        current = current.max(result?);
-    }
-    Ok(current)
+        .try_reduce_with(|a, b| Result::Ok(a.max(b)))
+        .expect("The permutations will never be empty!")
 }
 
 pub fn multi_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
