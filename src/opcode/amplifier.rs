@@ -14,11 +14,10 @@ use std::thread::{spawn, JoinHandle};
 
 pub fn single_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
     let codes = parse::imperative(codes_string)?;
-    let mut current = i32::MIN;
-    for perm in PERMUTATIONS {
-        current = current.max(amplify(&codes, perm)?);
-    }
-    Ok(current)
+    PERMUTATIONS
+        .into_iter()
+        .map(|phase_sequence| amplify(&codes, phase_sequence))
+        .try_fold(i32::MIN, |acc, result| Result::Ok(acc.max(result?)))
 }
 
 pub fn rayon_compute_max_signal(codes_string: &str) -> Result<i32> {
@@ -32,7 +31,6 @@ pub fn rayon_compute_max_signal(codes_string: &str) -> Result<i32> {
 
 pub fn multi_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
     let arc_codes = Arc::new(parse::imperative(codes_string)?);
-
     divide_ranges::<3>()
         // Step 1: spin up threads
         .into_iter()
@@ -42,20 +40,14 @@ pub fn multi_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
                 // each thread will find the max of its given range
                 PERMUTATIONS[range]
                     .iter()
-                    .map(|perm| amplify(&codes, *perm))
-                    .collect::<Vec<Result<i32>>>()
-                    .into_iter()
+                    .map(|phase_sequence| amplify(&codes, *phase_sequence))
                     .try_fold(i32::MIN, |acc, result| Result::Ok(acc.max(result?)))
             })
         })
         .collect::<Vec<JoinHandle<Result<i32>>>>()
-        // Step 2: join threads
+        // Step 2: join threads AND pick max result
         .into_iter()
-        .map(|handle| handle.join()?)
-        .collect::<Vec<Result<i32>>>()
-        // Step 3: pick max result
-        .into_iter()
-        .try_fold(i32::MIN, |acc, result| Result::Ok(acc.max(result?)))
+        .try_fold(i32::MIN, |acc, handle| Result::Ok(acc.max(handle.join()??)))
 }
 
 fn divide_ranges<const N: usize>() -> [Range<usize>; N] {
