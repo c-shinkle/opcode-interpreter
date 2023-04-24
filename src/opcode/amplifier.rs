@@ -47,7 +47,8 @@ pub fn multi_threaded_compute_max_signal(codes_string: &str) -> Result<i32> {
         .collect::<Vec<JoinHandle<Result<i32>>>>()
         // Step 2: join threads AND pick max result
         .into_iter()
-        .try_fold(i32::MIN, |acc, handle| Result::Ok(acc.max(handle.join()??)))
+        .map(|handle| handle.join()?)
+        .try_fold(i32::MIN, |acc, result| Result::Ok(acc.max(result?)))
 }
 
 fn divide_ranges<const N: usize>() -> [Range<usize>; N] {
@@ -71,7 +72,10 @@ fn amplify(codes: &[i32], phase_sequence: [i32; 5]) -> Result<i32> {
 
 #[cfg(test)]
 mod tests {
-    use crate::opcode::permutations::PERMUTATIONS;
+    use crate::opcode::{
+        amplifier::{multi_threaded_compute_max_signal, rayon_compute_max_signal},
+        permutations::PERMUTATIONS,
+    };
 
     use super::{divide_ranges, single_threaded_compute_max_signal};
 
@@ -97,10 +101,30 @@ mod tests {
     }
 
     #[test]
-    fn day_7_part_c() {
+    fn day_7_part_c_single_thread() {
         let codes_string = "3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0";
 
         let actual = single_threaded_compute_max_signal(codes_string);
+
+        assert!(actual.is_ok());
+        assert_eq!(actual.unwrap(), 65210);
+    }
+
+    #[test]
+    fn day_7_part_c_multi_thread() {
+        let codes_string = "3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0";
+
+        let actual = multi_threaded_compute_max_signal(codes_string);
+
+        assert!(actual.is_ok());
+        assert_eq!(actual.unwrap(), 65210);
+    }
+
+    #[test]
+    fn day_7_part_c_rayon() {
+        let codes_string = "3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0";
+
+        let actual = rayon_compute_max_signal(codes_string);
 
         assert!(actual.is_ok());
         assert_eq!(actual.unwrap(), 65210);
